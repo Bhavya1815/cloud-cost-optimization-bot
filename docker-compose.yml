@@ -1,0 +1,85 @@
+services:
+  floci:
+    image: floci/floci:latest
+    container_name: floci
+    ports:
+      - "4566:4566"
+    volumes:
+      - floci-data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      FLOCI_STORAGE_MODE: "hybrid"
+      FLOCI_STORAGE_PERSISTENT_PATH: "/app/data"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  dashboard:
+    image: cloud-cost-optimizer-dashboard:latest
+    container_name: cloud-cost-optimizer-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      AWS_ENDPOINT_URL: "http://floci:4566"
+      AWS_ACCESS_KEY_ID: "test"
+      AWS_SECRET_ACCESS_KEY: "test"
+      AWS_REGION: "us-east-1"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID}"
+      LOG_LEVEL: "INFO"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      floci:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduler:
+    image: cloud-cost-optimizer-dashboard:latest
+    container_name: cloud-cost-optimizer-scheduler
+    environment:
+      AWS_ENDPOINT_URL: "http://floci:4566"
+      AWS_ACCESS_KEY_ID: "test"
+      AWS_SECRET_ACCESS_KEY: "test"
+      AWS_REGION: "us-east-1"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID}"
+      LOG_LEVEL: "INFO"
+    depends_on:
+      floci:
+        condition: service_healthy
+    command: ["python", "-m", "app.scheduler"]
+    restart: unless-stopped
+
+  telegram-bot:
+    image: cloud-cost-optimizer-dashboard:latest
+    container_name: cloud-cost-optimizer-telegram-bot
+    environment:
+      AWS_ENDPOINT_URL: "http://floci:4566"
+      AWS_ACCESS_KEY_ID: "test"
+      AWS_SECRET_ACCESS_KEY: "test"
+      AWS_REGION: "us-east-1"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID}"
+      LOG_LEVEL: "INFO"
+    depends_on:
+      floci:
+        condition: service_healthy
+    command: ["python", "-m", "app.telegram_bot"]
+    restart: unless-stopped
+
+volumes:
+  floci-data:
