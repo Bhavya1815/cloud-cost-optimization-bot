@@ -1,4 +1,4 @@
-﻿# Cloud Cost Optimization Bot
+# Cloud Cost Optimization Bot
 
 A Dockerized cloud cost optimization platform that discovers running compute resources, identifies idle non-production resources, estimates potential savings, creates approval requests, and executes approved remediation through a Telegram control bot.
 
@@ -60,6 +60,8 @@ Safety Re-check
   v
 Approved Remediation
 ```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the detailed architecture and component responsibilities.
 
 ## Dashboard
 
@@ -202,52 +204,53 @@ Application services use structured logging with timestamps, severity, logger na
 
 ```text
 cloud-cost-optimizer/
-â”œâ”€â”€ app/
-â”‚   â”œâ”€â”€ approval.py
-â”‚   â”œâ”€â”€ approval_store.py
-â”‚   â”œâ”€â”€ audit.py
-â”‚   â”œâ”€â”€ audit_store.py
-â”‚   â”œâ”€â”€ aws_client.py
-â”‚   â”œâ”€â”€ config.py
-â”‚   â”œâ”€â”€ config_validation.py
-â”‚   â”œâ”€â”€ cost_engine.py
-â”‚   â”œâ”€â”€ dashboard.py
-â”‚   â”œâ”€â”€ dynamodb_store.py
-â”‚   â”œâ”€â”€ idle_detector.py
-â”‚   â”œâ”€â”€ logging_config.py
-â”‚   â”œâ”€â”€ main.py
-â”‚   â”œâ”€â”€ remediation.py
-â”‚   â”œâ”€â”€ remediation_service.py
-â”‚   â”œâ”€â”€ report_generator.py
-â”‚   â”œâ”€â”€ scanner.py
-â”‚   â”œâ”€â”€ scheduler.py
-â”‚   â”œâ”€â”€ telegram_bot.py
-â”‚   â”œâ”€â”€ telegram_formatter.py
-â”‚   â”œâ”€â”€ telegram_notifier.py
-â”‚   â””â”€â”€ providers/
-â”‚       â”œâ”€â”€ metrics.py
-â”‚       â””â”€â”€ pricing.py
-â”œâ”€â”€ docs/
-â”‚   â””â”€â”€ images/
-â”‚       â”œâ”€â”€ 01-dashboard-overview.png
-â”‚       â”œâ”€â”€ 02-approval-workflow.png
-â”‚       â”œâ”€â”€ 03-audit-trail.png
-â”‚       â”œâ”€â”€ 04-resource-optimization.png
-â”‚       â””â”€â”€ 05-github-actions-ci.png
-â”œâ”€â”€ tests/
-â”‚   â”œâ”€â”€ test_audit.py
-â”‚   â”œâ”€â”€ test_providers.py
-â”‚   â””â”€â”€ test_security.py
-â”œâ”€â”€ .github/
-â”‚   â””â”€â”€ workflows/
-â”‚       â””â”€â”€ ci.yml
-â”œâ”€â”€ .dockerignore
-â”œâ”€â”€ .gitignore
-â”œâ”€â”€ AWS-MIGRATION.md
-â”œâ”€â”€ Dockerfile
-â”œâ”€â”€ docker-compose.yml
-â”œâ”€â”€ requirements.txt
-â””â”€â”€ requirements-dev.txt
+├── app/
+│   ├── approval.py
+│   ├── approval_store.py
+│   ├── audit.py
+│   ├── audit_store.py
+│   ├── aws_client.py
+│   ├── config.py
+│   ├── config_validation.py
+│   ├── cost_engine.py
+│   ├── dashboard.py
+│   ├── dynamodb_store.py
+│   ├── idle_detector.py
+│   ├── logging_config.py
+│   ├── main.py
+│   ├── remediation.py
+│   ├── remediation_service.py
+│   ├── report_generator.py
+│   ├── scanner.py
+│   ├── scheduler.py
+│   ├── telegram_bot.py
+│   ├── telegram_formatter.py
+│   ├── telegram_notifier.py
+│   └── providers/
+│       ├── metrics.py
+│       └── pricing.py
+├── docs/
+│   └── images/
+│       ├── 01-dashboard-overview.png
+│       ├── 02-approval-workflow.png
+│       ├── 03-audit-trail.png
+│       ├── 04-resource-optimization.png
+│       └── 05-github-actions-ci.png
+├── tests/
+│   ├── test_audit.py
+│   ├── test_providers.py
+│   └── test_security.py
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── .dockerignore
+├── .gitignore
+├── ARCHITECTURE.md
+├── AWS-MIGRATION.md
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+└── requirements-dev.txt
 ```
 
 ## Running Locally
@@ -260,7 +263,15 @@ cloud-cost-optimizer/
 - Python 3.13+
 - Git
 
-### Start the stack
+### Start the Stack
+
+Build the application image:
+
+```powershell
+docker build -t cloud-cost-optimizer-dashboard:latest .
+```
+
+Start the stack:
 
 ```powershell
 docker compose up -d
@@ -477,11 +488,8 @@ The current implementation is a local Floci-based demonstration. It does not cla
 
 **Bhavyarajsinh Raulji**
 
-GitHub:
+GitHub:  
 https://github.com/Bhavya1815
 
-Portfolio:
-https://bhavyarajsinh.vercel.app
-
-Repository:
+Repository:  
 https://github.com/Bhavya1815/cloud-cost-optimization-bot
