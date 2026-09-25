@@ -38,7 +38,7 @@ jobs:
       - name: Validate Docker Compose
         env:
           TELEGRAM_BOT_TOKEN: ci-placeholder-token
-          TELEGRAM_CHAT_ID: "2138357235"
+          TELEGRAM_CHAT_ID: "0000000000"
         run: |
           docker compose config
 
