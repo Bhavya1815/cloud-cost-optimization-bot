@@ -3,35 +3,73 @@ from .approval_store import (
     update_approval_status,
 )
 from .scanner import scan_ec2_instances
-from .idle_detector import analyze_idle_instances
+from .idle_detector import (
+    analyze_idle_instances,
+)
 from .remediation import stop_instance
+from .logging_config import (
+    get_logger,
+)
+from .audit_store import (
+    safe_record_audit_event,
+)
+
+
+logger = get_logger(__name__)
 
 
 def execute_approved_remediation(
-    approval_id
+    approval_id,
 ):
-    """
-    Execute remediation only when an approval
-    request has been explicitly approved.
-    """
+    safe_record_audit_event(
+        logger,
+        "REMEDIATION_REQUESTED",
+        approval_id=approval_id,
+        status="REQUESTED",
+    )
 
     approval = get_approval_request(
         approval_id
     )
 
     if not approval:
-        return {
-            "success": False,
-            "reason": "Approval request not found.",
-        }
+        safe_record_audit_event(
+            logger,
+            "REMEDIATION_FAILED",
+            approval_id=approval_id,
+            status="FAILED",
+            message="Approval request not found.",
+        )
 
-    if approval.get("status") != "APPROVED":
         return {
             "success": False,
             "reason": (
-                "Approval request is not approved. "
-                f"Current status: {approval.get('status')}"
+                "Approval request not found."
             ),
+        }
+
+    if approval.get("status") != "APPROVED":
+        reason = (
+            "Approval request is not approved. "
+            f"Current status: "
+            f"{approval.get('status')}"
+        )
+
+        safe_record_audit_event(
+            logger,
+            "REMEDIATION_BLOCKED",
+            instance_id=approval.get(
+                "instance_id"
+            ),
+            name=approval.get("name"),
+            approval_id=approval_id,
+            status=approval.get("status"),
+            message=reason,
+        )
+
+        return {
+            "success": False,
+            "reason": reason,
         }
 
     instances = scan_ec2_instances()
@@ -53,12 +91,26 @@ def execute_approved_remediation(
             "FAILED",
         )
 
+        reason = (
+            "Target instance is no longer "
+            "running or available."
+        )
+
+        safe_record_audit_event(
+            logger,
+            "REMEDIATION_FAILED",
+            instance_id=approval.get(
+                "instance_id"
+            ),
+            name=approval.get("name"),
+            approval_id=approval_id,
+            status="FAILED",
+            message=reason,
+        )
+
         return {
             "success": False,
-            "reason": (
-                "Target instance is no longer "
-                "running or available."
-            ),
+            "reason": reason,
         }
 
     instance = target_instances[0]
@@ -68,18 +120,31 @@ def execute_approved_remediation(
     )
 
     if result["success"]:
-
         update_approval_status(
             approval_id,
             "EXECUTED",
         )
 
+        safe_record_audit_event(
+            logger,
+            "REMEDIATION_EXECUTED",
+            instance_id=instance[
+                "instance_id"
+            ],
+            name=instance.get("name"),
+            approval_id=approval_id,
+            status="EXECUTED",
+            message=result["reason"],
+        )
+
         return {
             "success": True,
-            "instance_id": instance["instance_id"],
+            "instance_id": instance[
+                "instance_id"
+            ],
             "reason": (
-                "Approved remediation executed "
-                "successfully."
+                "Approved remediation "
+                "executed successfully."
             ),
         }
 
@@ -88,8 +153,22 @@ def execute_approved_remediation(
         "FAILED",
     )
 
+    safe_record_audit_event(
+        logger,
+        "REMEDIATION_FAILED",
+        instance_id=instance[
+            "instance_id"
+        ],
+        name=instance.get("name"),
+        approval_id=approval_id,
+        status="FAILED",
+        message=result["reason"],
+    )
+
     return {
         "success": False,
-        "instance_id": instance["instance_id"],
+        "instance_id": instance[
+            "instance_id"
+        ],
         "reason": result["reason"],
     }

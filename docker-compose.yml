@@ -30,6 +30,8 @@ services:
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID}"
       LOG_LEVEL: "INFO"
+      METRICS_PROVIDER: "simulated"
+      PRICING_PROVIDER: "simulated"
     healthcheck:
       test:
         [
@@ -58,6 +60,8 @@ services:
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID}"
       LOG_LEVEL: "INFO"
+      METRICS_PROVIDER: "simulated"
+      PRICING_PROVIDER: "simulated"
     depends_on:
       floci:
         condition: service_healthy
@@ -75,6 +79,8 @@ services:
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID}"
       LOG_LEVEL: "INFO"
+      METRICS_PROVIDER: "simulated"
+      PRICING_PROVIDER: "simulated"
     depends_on:
       floci:
         condition: service_healthy

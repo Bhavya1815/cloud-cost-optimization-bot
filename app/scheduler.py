@@ -1,4 +1,6 @@
-from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.blocking import (
+    BlockingScheduler,
+)
 
 from .scanner import scan_ec2_instances
 from .idle_detector import analyze_idle_instances
@@ -11,11 +13,19 @@ from .dynamodb_store import (
 from .approval import create_approval_request
 from .approval_store import save_approval_request
 from .report_generator import generate_weekly_report
-from .telegram_formatter import format_recommendation_alert
+from .telegram_formatter import (
+    format_recommendation_alert,
+)
 from .telegram_notifier import send_message
 from .logging_config import (
     configure_logging,
     get_logger,
+)
+from .config_validation import (
+    validate_configuration,
+)
+from .audit_store import (
+    safe_record_audit_event,
 )
 
 
@@ -46,11 +56,20 @@ def run_monitoring_scan():
         "Starting resource monitoring scan."
     )
 
-    try:
-        recommendations = get_current_recommendations()
+    safe_record_audit_event(
+        logger,
+        "SCAN_STARTED",
+    )
 
-        resolved_count = resolve_missing_recommendations(
-            recommendations
+    try:
+        recommendations = (
+            get_current_recommendations()
+        )
+
+        resolved_count = (
+            resolve_missing_recommendations(
+                recommendations
+            )
         )
 
         if resolved_count:
@@ -59,14 +78,41 @@ def run_monitoring_scan():
                 resolved_count,
             )
 
+        for recommendation in recommendations:
+            safe_record_audit_event(
+                logger,
+                "RECOMMENDATION_DETECTED",
+                instance_id=recommendation[
+                    "instance_id"
+                ],
+                name=recommendation["name"],
+                status="ACTIVE",
+                message=recommendation[
+                    "reason"
+                ],
+            )
+
         if not recommendations:
             logger.info(
                 "No optimization candidates detected."
             )
+
+            safe_record_audit_event(
+                logger,
+                "SCAN_COMPLETED",
+                status="NO_CANDIDATES",
+                metadata={
+                    "recommendation_count": 0,
+                    "new_recommendation_count": 0,
+                },
+            )
+
             return
 
-        new_recommendations = save_recommendations(
-            recommendations
+        new_recommendations = (
+            save_recommendations(
+                recommendations
+            )
         )
 
         logger.info(
@@ -84,6 +130,19 @@ def run_monitoring_scan():
                 "No new recommendations. "
                 "Approval request skipped."
             )
+
+            safe_record_audit_event(
+                logger,
+                "SCAN_COMPLETED",
+                status="NO_NEW_RECOMMENDATIONS",
+                metadata={
+                    "recommendation_count": len(
+                        recommendations
+                    ),
+                    "new_recommendation_count": 0,
+                },
+            )
+
             return
 
         approval_requests = []
@@ -93,13 +152,33 @@ def run_monitoring_scan():
                 recommendation
             )
 
-            save_approval_request(approval)
+            save_approval_request(
+                approval
+            )
 
-            approval_requests.append(approval)
+            approval_requests.append(
+                approval
+            )
 
             logger.info(
                 "Approval request created: %s",
                 approval["approval_id"],
+            )
+
+            safe_record_audit_event(
+                logger,
+                "APPROVAL_CREATED",
+                instance_id=recommendation[
+                    "instance_id"
+                ],
+                name=recommendation["name"],
+                approval_id=approval[
+                    "approval_id"
+                ],
+                status="PENDING",
+                message=(
+                    "Approval request created."
+                ),
             )
 
         message = format_recommendation_alert(
@@ -144,10 +223,43 @@ def run_monitoring_scan():
             "Approval request sent to Telegram."
         )
 
-    except Exception:
+        safe_record_audit_event(
+            logger,
+            "ALERT_SENT",
+            status="SENT",
+            metadata={
+                "approval_count": len(
+                    approval_requests
+                ),
+            },
+        )
+
+        safe_record_audit_event(
+            logger,
+            "SCAN_COMPLETED",
+            status="RECOMMENDATIONS_CREATED",
+            metadata={
+                "recommendation_count": len(
+                    recommendations
+                ),
+                "new_recommendation_count": len(
+                    new_recommendations
+                ),
+            },
+        )
+
+    except Exception as error:
+        safe_record_audit_event(
+            logger,
+            "SCAN_FAILED",
+            status="FAILED",
+            message=str(error),
+        )
+
         logger.exception(
             "Monitoring scan failed."
         )
+
         raise
 
 
@@ -157,7 +269,9 @@ def run_weekly_report():
     )
 
     try:
-        recommendations = get_current_recommendations()
+        recommendations = (
+            get_current_recommendations()
+        )
 
         report = generate_weekly_report(
             recommendations
@@ -173,10 +287,13 @@ def run_weekly_report():
         logger.exception(
             "Weekly report failed."
         )
+
         raise
 
 
 def main():
+    validate_configuration()
+
     logger.info(
         "Starting Cloud Cost Optimization Scheduler."
     )

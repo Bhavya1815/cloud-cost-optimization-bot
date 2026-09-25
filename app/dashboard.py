@@ -1,10 +1,17 @@
+import json
+
 import streamlit as st
 
 from app.scanner import scan_ec2_instances
 from app.idle_detector import analyze_idle_instances
 from app.analyzer import analyze_instances
 from app.cost_engine import add_cost_estimates
-from app.approval_store import create_table_if_not_exists
+from app.approval_store import (
+    create_table_if_not_exists,
+)
+from app.audit_store import (
+    list_audit_events,
+)
 
 
 st.set_page_config(
@@ -43,8 +50,13 @@ def get_approval_requests():
     )
 
 
-def main():
+def get_audit_data():
+    return list_audit_events(
+        limit=100
+    )
 
+
+def main():
     st.title("Cloud Cost Optimizer")
 
     st.caption(
@@ -53,10 +65,6 @@ def main():
     )
 
     st.divider()
-
-    # -------------------------------------------------
-    # Refresh
-    # -------------------------------------------------
 
     if st.button(
         "Refresh Dashboard",
@@ -73,19 +81,15 @@ def main():
             get_approval_requests()
         )
 
+        audit_events = get_audit_data()
+
         all_instances = scan_ec2_instances()
 
     except Exception as error:
-
         st.error(
             f"Unable to load dashboard data: {error}"
         )
-
         st.stop()
-
-    # -------------------------------------------------
-    # Resource statistics
-    # -------------------------------------------------
 
     running_count = sum(
         1
@@ -129,30 +133,30 @@ def main():
     pending_count = sum(
         1
         for request in approval_requests
-        if request.get("status") == "PENDING"
+        if request.get("status")
+        == "PENDING"
     )
 
     approved_count = sum(
         1
         for request in approval_requests
-        if request.get("status") == "APPROVED"
+        if request.get("status")
+        == "APPROVED"
     )
 
     executed_count = sum(
         1
         for request in approval_requests
-        if request.get("status") == "EXECUTED"
+        if request.get("status")
+        == "EXECUTED"
     )
 
     failed_count = sum(
         1
         for request in approval_requests
-        if request.get("status") == "FAILED"
+        if request.get("status")
+        == "FAILED"
     )
-
-    # -------------------------------------------------
-    # Top metrics
-    # -------------------------------------------------
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -178,16 +182,13 @@ def main():
 
     st.divider()
 
-    # -------------------------------------------------
-    # Resource charts
-    # -------------------------------------------------
-
-    st.subheader("Resource Overview")
+    st.subheader(
+        "Resource Overview"
+    )
 
     col1, col2 = st.columns(2)
 
     with col1:
-
         st.write("Resource State")
 
         state_chart = {
@@ -201,7 +202,6 @@ def main():
         )
 
     with col2:
-
         st.write("CPU Activity")
 
         activity_chart = {
@@ -216,23 +216,19 @@ def main():
 
     st.divider()
 
-    # -------------------------------------------------
-    # Savings overview
-    # -------------------------------------------------
-
-    st.subheader("Savings Overview")
+    st.subheader(
+        "Savings Overview"
+    )
 
     col1, col2 = st.columns(2)
 
     with col1:
-
         st.metric(
             "Estimated Monthly Savings",
             f"${total_monthly_savings:.2f}",
         )
 
     with col2:
-
         st.metric(
             "Estimated Annual Savings",
             f"${yearly_savings:.2f}",
@@ -240,11 +236,9 @@ def main():
 
     st.divider()
 
-    # -------------------------------------------------
-    # Approval workflow
-    # -------------------------------------------------
-
-    st.subheader("Approval Workflow")
+    st.subheader(
+        "Approval Workflow"
+    )
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -269,11 +263,9 @@ def main():
     )
 
     if approval_requests:
-
         approval_rows = []
 
         for request in approval_requests:
-
             approval_rows.append({
                 "Approval ID": request.get(
                     "approval_id",
@@ -312,23 +304,90 @@ def main():
         )
 
     else:
-
         st.info(
             "No approval requests found."
         )
 
     st.divider()
 
-    # -------------------------------------------------
-    # Resource inventory
-    # -------------------------------------------------
+    st.subheader(
+        "Audit Trail"
+    )
 
-    st.subheader("Resource Inventory")
+    st.caption(
+        "Latest 100 system events from the "
+        "cost-optimization-audit DynamoDB table."
+    )
+
+    if audit_events:
+        audit_rows = []
+
+        for event in audit_events:
+            metadata = event.get(
+                "metadata"
+            )
+
+            if metadata is None:
+                metadata_text = ""
+            else:
+                metadata_text = json.dumps(
+    metadata,
+    sort_keys=True,
+    default=str,
+)
+
+            audit_rows.append({
+                "Timestamp": event.get(
+                    "timestamp",
+                    "",
+                ),
+                "Event": event.get(
+                    "event_type",
+                    "",
+                ),
+                "Resource": event.get(
+                    "name",
+                    "",
+                ),
+                "Instance ID": event.get(
+                    "instance_id",
+                    "",
+                ),
+                "Approval ID": event.get(
+                    "approval_id",
+                    "",
+                ),
+                "Status": event.get(
+                    "status",
+                    "",
+                ),
+                "Message": event.get(
+                    "message",
+                    "",
+                ),
+                "Metadata": metadata_text,
+            })
+
+        st.dataframe(
+            audit_rows,
+            width="stretch",
+            hide_index=True,
+        )
+
+    else:
+        st.info(
+            "No audit events recorded yet."
+        )
+
+    st.divider()
+
+    st.subheader(
+        "Resource Inventory"
+    )
 
     resource_rows = []
 
     for instance in instances:
-
         resource_rows.append({
             "Name": instance["name"],
             "Instance ID": instance[
@@ -351,7 +410,6 @@ def main():
         })
 
     if resource_rows:
-
         st.dataframe(
             resource_rows,
             width="stretch",
@@ -359,41 +417,31 @@ def main():
         )
 
     else:
-
         st.info(
             "No running resources detected."
         )
 
     st.divider()
 
-    # -------------------------------------------------
-    # Recommendations
-    # -------------------------------------------------
-
     st.subheader(
         "Optimization Recommendations"
     )
 
     if not recommendations:
-
         st.success(
             "No optimization candidates detected."
         )
 
     else:
-
         for recommendation in recommendations:
-
             with st.container(
                 border=True
             ):
-
                 col1, col2, col3 = st.columns(
                     [2, 1, 1]
                 )
 
                 with col1:
-
                     st.write(
                         f"**{recommendation['name']}**"
                     )
@@ -405,7 +453,6 @@ def main():
                     )
 
                 with col2:
-
                     st.write(
                         f"CPU: "
                         f"{recommendation['cpu_utilization']}%"
@@ -417,7 +464,6 @@ def main():
                     )
 
                 with col3:
-
                     st.write(
                         "Estimated saving"
                     )

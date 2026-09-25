@@ -1,42 +1,35 @@
-from .config import (
-    SIMULATED_HOURLY_RATES,
-    HOURS_PER_MONTH,
-)
+from .providers.pricing import get_pricing_provider
 
 
-def estimate_monthly_cost(instance_type):
-    """
-    Estimate monthly EC2 cost using simulated rates.
+def estimate_monthly_cost(
+    instance_type,
+    instance_id=None,
+):
+    provider = get_pricing_provider()
 
-    These values are for local Floci testing only
-    and do not represent actual AWS billing.
-    """
-
-    hourly_rate = SIMULATED_HOURLY_RATES.get(
+    return provider.estimate_monthly_cost(
         instance_type,
-        0
-    )
-
-    return round(
-        hourly_rate * HOURS_PER_MONTH,
-        2
+        instance_id,
     )
 
 
 def add_cost_estimates(recommendations):
-    """
-    Add estimated monthly cost and savings
-    to each recommendation.
-    """
-
     for recommendation in recommendations:
-
         monthly_cost = estimate_monthly_cost(
-            recommendation["instance_type"]
+            recommendation["instance_type"],
+            recommendation["instance_id"],
         )
 
-        recommendation["estimated_monthly_cost"] = monthly_cost
+        recommendation[
+            "estimated_monthly_cost"
+        ] = monthly_cost
 
-        recommendation["estimated_monthly_savings"] = monthly_cost
+        recommendation[
+            "estimated_monthly_savings"
+        ] = monthly_cost
+
+        recommendation[
+            "cost_source"
+        ] = get_pricing_provider().source_name
 
     return recommendations

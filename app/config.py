@@ -1,26 +1,74 @@
 import os
 
 
-AWS_ENDPOINT_URL = os.getenv(
-    "AWS_ENDPOINT_URL",
-    "http://localhost:4566"
+AWS_ENDPOINT_URL = (
+    os.getenv(
+        "AWS_ENDPOINT_URL",
+        "http://localhost:4566",
+    ).strip()
+    or None
 )
 
-AWS_PROFILE = os.getenv(
-    "AWS_PROFILE",
-    "floci"
+AWS_PROFILE = (
+    os.getenv(
+        "AWS_PROFILE",
+        "",
+    ).strip()
+    or None
 )
 
 AWS_REGION = os.getenv(
     "AWS_REGION",
-    "us-east-1"
+    "us-east-1",
 )
 
 
-# Simulated hourly rates for local Floci testing.
-#
-# These are demonstration values and are NOT
-# real AWS billing data.
+METRICS_PROVIDER = os.getenv(
+    "METRICS_PROVIDER",
+    "simulated",
+).lower()
+
+PRICING_PROVIDER = os.getenv(
+    "PRICING_PROVIDER",
+    "simulated",
+).lower()
+
+
+CLOUDWATCH_ENDPOINT_URL = (
+    os.getenv(
+        "CLOUDWATCH_ENDPOINT_URL",
+        "",
+    ).strip()
+    or None
+)
+
+COST_EXPLORER_ENDPOINT_URL = (
+    os.getenv(
+        "COST_EXPLORER_ENDPOINT_URL",
+        "",
+    ).strip()
+    or None
+)
+
+COST_EXPLORER_REGION = os.getenv(
+    "COST_EXPLORER_REGION",
+    "us-east-1",
+)
+
+COST_EXPLORER_LOOKBACK_DAYS = int(
+    os.getenv(
+        "COST_EXPLORER_LOOKBACK_DAYS",
+        "14",
+    )
+)
+
+ESTIMATED_DAYS_PER_MONTH = float(
+    os.getenv(
+        "ESTIMATED_DAYS_PER_MONTH",
+        "30.44",
+    )
+)
+
 
 SIMULATED_HOURLY_RATES = {
     "t2.micro": 0.0116,
@@ -31,10 +79,6 @@ SIMULATED_HOURLY_RATES = {
 }
 
 
-# Average number of hours used for a monthly estimate.
 HOURS_PER_MONTH = 730
 
-
-# CPU utilization below this percentage
-# is considered idle.
 IDLE_CPU_THRESHOLD = 10.0
